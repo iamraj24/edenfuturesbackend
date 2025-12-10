@@ -12,9 +12,10 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors({
-    origin: 'http://localhost:5173', // Allow CORS from Vite frontend default port
+    origin: ['http://localhost:5173', 'https://edenfuturesfrontend.vercel.app'], // Allow CORS from both local dev and Vercel
     credentials: true,
 }));
+
 app.use(express.json());
 
 // Routes
