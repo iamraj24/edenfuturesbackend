@@ -67,21 +67,61 @@ adminRouter.patch('/categories/:id', async (req, res) => {
 });
 
 // --------------------------------------------
-// DELETE CATEGORY
+// DELETE CATEGORY (FIXED: Handles cascading deletion of Nominees and Votes)
 // --------------------------------------------
 adminRouter.delete('/categories/:id', async (req, res) => {
-    const { id } = req.params;
+    const { id: categoryId } = req.params;
 
-    const { error } = await supabase
-        .from('categories')
-        .delete()
-        .eq('id', id);
+    // 1. Find all Nominees in this Category to get their IDs
+    const { data: nominees, error: fetchNomineesError } = await supabase
+        .from('nominees')
+        .select('id')
+        .eq('category_id', categoryId);
 
-    if (error) {
-        return res.status(500).json({ message: 'Failed to delete category.', error });
+    if (fetchNomineesError) {
+        console.error('Error fetching nominees for deletion:', fetchNomineesError);
+        return res.status(500).json({ message: 'Failed to prepare for category deletion (fetching nominees).', error: fetchNomineesError });
     }
 
-    res.status(200).json({ message: 'Category deleted successfully.' });
+    const nomineeIds = nominees.map(n => n.id);
+
+    // 2. Delete all Votes associated with these Nominees (if any exist)
+    if (nomineeIds.length > 0) {
+        const { error: votesError } = await supabase
+            .from('votes')
+            .delete()
+            .in('nominee_id', nomineeIds); // Delete votes in bulk
+
+        if (votesError) {
+            console.error('Error deleting associated votes:', votesError);
+            return res.status(500).json({ message: 'Failed to delete associated votes before deleting category.', error: votesError });
+        }
+    }
+
+    // 3. Delete all Nominees associated with this Category
+    const { error: nomineesError } = await supabase
+        .from('nominees')
+        .delete()
+        .eq('category_id', categoryId);
+
+    if (nomineesError) {
+        console.error('Error deleting associated nominees:', nomineesError);
+        return res.status(500).json({ message: 'Failed to delete associated nominees before deleting category.', error: nomineesError });
+    }
+
+    // 4. Finally, delete the Category itself
+    const { error: categoryError } = await supabase
+        .from('categories')
+        .delete()
+        .eq('id', categoryId);
+
+    if (categoryError) {
+        console.log('Final Category Deletion Error (Check DB Constraints):', categoryError);
+        // This is a final fallback error check
+        return res.status(500).json({ message: 'Failed to delete category (final step). Check database foreign key configuration.', error: categoryError });
+    }
+
+    res.status(200).json({ message: 'Category, all associated nominees, and votes deleted successfully.' });
 });
 
 // --------------------------------------------
