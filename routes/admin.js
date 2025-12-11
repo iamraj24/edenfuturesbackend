@@ -188,9 +188,13 @@ adminRouter.delete('/nominees/:id', async (req, res) => {
 
 
 // --------------------------------------------
-// NEW NOMINATIONS ROUTES (The Joining Links)
+// NEW NOMINATIONS ROUTES (The Joining Links - Fixes the 404 Error)
 // --------------------------------------------
 
+/**
+ * GET /api/admin/nominations
+ * Fetches ALL nominee-category links. This is the endpoint that was causing the 404 error.
+ */
 adminRouter.get('/nominations', async (req, res) => {
     // Fetch all nominations and join to get nominee/category names for display
     const { data, error } = await supabase
@@ -205,6 +209,10 @@ adminRouter.get('/nominations', async (req, res) => {
     res.json(data);
 });
 
+/**
+ * POST /api/admin/nominations
+ * Creates a new link between a nominee and a category.
+ */
 adminRouter.post('/nominations', async (req, res) => {
     const { nominee_id, category_id } = req.body;
     
@@ -229,6 +237,10 @@ adminRouter.post('/nominations', async (req, res) => {
     res.status(201).json(data[0]);
 });
 
+/**
+ * DELETE /api/admin/nominations/:id
+ * Deletes a specific nominee-category link.
+ */
 adminRouter.delete('/nominations/:id', async (req, res) => {
     const { id } = req.params;
     
